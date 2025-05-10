@@ -22,7 +22,8 @@ CORS(app)
 # Configure Gemini API
 API_KEY = "AIzaSyDD8QW1BggDVVMLteDygHCHrD6Ff9Dy0e8"
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel("gemini-1.5-pro")
+#model = genai.GenerativeModel("gemini-1.5-pro")
+model = genai.GenerativeModel("gemini-2.5-flash-preview-04-17")
 
 # Configuration
 SECTIONS = ['header', 'body', 'footer']

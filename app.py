@@ -22,12 +22,11 @@ CORS(app)
 # Configure Gemini API
 API_KEY = "AIzaSyDD8QW1BggDVVMLteDygHCHrD6Ff9Dy0e8"
 genai.configure(api_key=API_KEY)
-#model = genai.GenerativeModel("gemini-1.5-pro")
 model = genai.GenerativeModel("gemini-2.5-flash-preview-04-17")
 
-# Configuration
+# Paths
 SECTIONS = ['header', 'body', 'footer']
-BASE_PATH = r'./'
+BASE_PATH = './'
 INPUT_PATH = os.path.join(BASE_PATH, 'input')
 DATASET_PATH = BASE_PATH
 BEST_IMAGES_PATH = os.path.join(BASE_PATH, 'best_images')
@@ -39,7 +38,6 @@ for section in SECTIONS:
     os.makedirs(os.path.join(DATASET_PATH, section), exist_ok=True)
 os.makedirs(BEST_IMAGES_PATH, exist_ok=True)
 
-# Compare function using perceptual hash
 def get_similarity(img1_path, img2_path):
     try:
         with Image.open(img1_path) as img1, Image.open(img2_path) as img2:
@@ -50,7 +48,6 @@ def get_similarity(img1_path, img2_path):
         logging.error(f"Error comparing {img1_path} and {img2_path}: {e}")
         return 0
 
-# Segment webpage function
 def segment_webpage(url, segment_type, url_index):
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
     try:
@@ -58,7 +55,7 @@ def segment_webpage(url, segment_type, url_index):
         screenshot = driver.get_screenshot_as_png()
         with open(TEMP_IMAGE_PATH, "wb") as f:
             f.write(screenshot)
-        
+
         img = Image.open(TEMP_IMAGE_PATH)
         if segment_type == 'header':
             cropped = img.crop((0, 0, img.width, 100))
@@ -66,7 +63,7 @@ def segment_webpage(url, segment_type, url_index):
             cropped = img.crop((0, 100, img.width, img.height - 100))
         else:
             cropped = img.crop((0, img.height - 100, img.width, img.height))
-        
+
         output_path = os.path.join(INPUT_PATH, segment_type, f"url{url_index + 1}_{segment_type}.jpg")
         cropped.save(output_path, "JPEG")
         return output_path
@@ -84,12 +81,10 @@ def find_best_matches_per_section():
 
     for section in SECTIONS:
         similarities_per_url = {f"url{i+1}": {'best_match': None, 'best_score': 0, 'image_path': None} for i in range(3)}
-
         dataset_dir = os.path.join(DATASET_PATH, section)
+
         if not os.path.exists(dataset_dir) or not os.listdir(dataset_dir):
             logging.warning(f"No dataset images found in {dataset_dir}")
-            for i in range(3):
-                similarities_per_url[f"url{i+1}"] = {'best_match': None, 'best_score': 0, 'image_path': None}
         else:
             for i in range(3):
                 input_img = os.path.join(INPUT_PATH, section, f"url{i+1}_{section}.jpg")
@@ -97,7 +92,6 @@ def find_best_matches_per_section():
                     continue
                 best_score = 0
                 best_match = None
-
                 for dataset_img in os.listdir(dataset_dir):
                     dataset_img_path = os.path.join(dataset_dir, dataset_img)
                     score = get_similarity(input_img, dataset_img_path)
@@ -113,22 +107,21 @@ def find_best_matches_per_section():
         final_results[section] = sorted_urls
 
         if sorted_urls and sorted_urls[0][1]['best_score'] > 0:
-            best_image_path = sorted_urls[0][1]['image_path']
-            best_images[section] = best_image_path
+            best_images[section] = sorted_urls[0][1]['image_path']
 
     for section, image_path in best_images.items():
         dest_path = os.path.join(BEST_IMAGES_PATH, f"best_{section}.jpg")
         shutil.copy(image_path, dest_path)
 
-    # Safely clean up input directories
+    # Cleanup input directories
     for section in SECTIONS:
-        input_section_path = os.path.join(INPUT_PATH, section)
+        input_path = os.path.join(INPUT_PATH, section)
         try:
-            if os.path.exists(input_section_path):
-                shutil.rmtree(input_section_path)
-                os.makedirs(input_section_path, exist_ok=True)
+            if os.path.exists(input_path):
+                shutil.rmtree(input_path)
+                os.makedirs(input_path, exist_ok=True)
         except Exception as e:
-            logging.error(f"Error cleaning up {input_section_path}: {e}")
+            logging.error(f"Error cleaning up {input_path}: {e}")
 
     return final_results, best_images
 
@@ -142,19 +135,8 @@ def generate_suggestions(image_path, section_type, website_type="e-commerce"):
         image_base64 = encode_image(image_path)
         mime_type = "image/jpeg"
 
-        prompt = f"""
-        You are an expert in web design, user experience, and accessibility, with a deep understanding of the Web Content Accessibility Guidelines (WCAG). Analyze the {section_type} image of a {website_type} website provided below. Provide 3-5 specific, actionable suggestions to improve its design, layout, text, functionality, and accessibility. Tailor the suggestions to enhance aesthetics, usability, and accessibility for a {website_type} website, ensuring compliance with WCAG principles. Consider the following WCAG principles in your recommendations:
-
-        - **Perceivable**: Ensure content is accessible to all users, including those using assistive technologies. Provide text alternatives for non-text content (e.g., alt text for images), ensure content can be presented in different ways without losing meaning (e.g., proper semantic structure), and make it easier for users to see and hear content (e.g., sufficient color contrast, resizable text).
-        - **Operable**: Make all functionality available from a keyboard, give users enough time to read and use content, avoid content that causes seizures (e.g., flashing elements), help users navigate and find content (e.g., clear focus indicators), and make it easier to use inputs other than a keyboard (e.g., touch-friendly elements).
-        - **Understandable**: Make text readable and understandable (e.g., clear language, consistent terminology), ensure content appears and operates predictably (e.g., consistent navigation), and help users avoid and correct mistakes (e.g., clear error messages).
-        - **Robust**: Maximize compatibility with current and future user tools, including assistive technologies (e.g., proper HTML semantics, ARIA landmarks).
-
-        For example, suggest changes to colors, fonts, navigation, content placement, or interactive elements that align with best practices for {website_type} websites while ensuring accessibility. Format the output as a numbered list.
-
-        Image: [Attached]
-        """
-
+        prompt = f"""[Prompt unchanged for brevity, keep yours here as-is]"""
+        
         content = [
             {"text": prompt},
             {
@@ -166,20 +148,31 @@ def generate_suggestions(image_path, section_type, website_type="e-commerce"):
         ]
 
         response = model.generate_content(content)
+
+        # Safely handle missing or bad responses
+        if not hasattr(response, "text") or response.text is None:
+            logging.warning(f"No text returned from Gemini for section {section_type}")
+            return {
+                "website_type": website_type,
+                "section_type": section_type,
+                "suggestions": ["⚠️ Gemini API did not return any content."]
+            }
+
         suggestions_text = response.text.strip()
         suggestions_list = [line.strip() for line in suggestions_text.split("\n") if line.strip().startswith(tuple("123456789"))]
-        
+
         return {
             "website_type": website_type,
             "section_type": section_type,
-            "suggestions": suggestions_list
+            "suggestions": suggestions_list if suggestions_list else ["No structured suggestions parsed."]
         }
+
     except Exception as e:
         logging.error(f"Error generating suggestions for {section_type}: {e}")
         return {
             "website_type": website_type,
             "section_type": section_type,
-            "suggestions": []
+            "suggestions": [f"❌ Error during suggestion generation: {str(e)}"]
         }
 
 @app.route("/process-urls", methods=["POST"])
@@ -193,18 +186,18 @@ def process_urls_api():
         if len(urls) != 3:
             return jsonify({"error": "Exactly 3 URLs are required"}), 400
 
-        logging.info(f"Processing URLs: {urls}")
+        logging.info(f"Received URLs: {urls}")
         process_urls(urls)
         best_matches, best_images = find_best_matches_per_section()
 
-        rankings_output = "\n🎯 Final Rankings per Section (Sorted by Best Similarity Score):\n"
+        rankings_output = "\n🎯 Final Rankings per Section:\n"
         for section, rankings in best_matches.items():
-            rankings_output += f"\nSection: {section.upper()}\n"
+            rankings_output += f"\n{section.upper()}:\n"
             for rank, (url, info) in enumerate(rankings, 1):
                 if info['best_match']:
-                    rankings_output += f"{rank}. {url} (Best Match: {info['best_match']}, Similarity: {info['best_score']:.3f})\n"
+                    rankings_output += f"{rank}. {url} (Match: {info['best_match']}, Score: {info['best_score']:.2f})\n"
                 else:
-                    rankings_output += f"{rank}. {url} (No matches found in dataset)\n"
+                    rankings_output += f"{rank}. {url} (No match)\n"
 
         suggestions_results = []
         for section in SECTIONS:
@@ -219,7 +212,7 @@ def process_urls_api():
         }), 200
 
     except Exception as e:
-        logging.error(f"Server error: {str(e)}")
+        logging.error(f"Unhandled server error: {e}")
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":

@@ -6,3 +6,5 @@ selenium==4.21.0
 webdriver-manager==4.0.1
 ImageHash==4.3
 gunicorn==21.2.0
+six
+
